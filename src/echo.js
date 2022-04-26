@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { userMediaConfig } from './user-media-config';
+import { userMediaConfig } from './config/user-media-config';
+import { domReady } from './utilities/domReady';
+import { Video, Log } from './components'
 
 const Echo = () =>  {
   const previewElement = useRef(null)
   const recordingElement = useRef(null)
   const echoElement = useRef(null)
   const rippleElement = useRef(null)
-  const logElement = useRef(null)
   const [urls, setUrls] = useState([])
   const [number, setNumber] = useState(0)
   const [message, setMessage] = useState('')
@@ -17,7 +18,6 @@ const Echo = () =>  {
   const recording = recordingElement.current
   const echo = echoElement.current
   const ripple = rippleElement.current
-  // const log = logElement.current
 
   function wait(delayInMS) {
     return new Promise(resolve => setTimeout(resolve, delayInMS));
@@ -84,46 +84,35 @@ const Echo = () =>  {
     })
   }
 
-  if (
-      document.readyState === "complete" ||
-      ( document.readyState !== "loading" &&
-        !document.documentElement.doScroll )
-  ) {
-    start();
-  } else {
-    document.addEventListener("DOMContentLoaded", start);
-  }
+  domReady(start)
+
+  // if (
+  //     document.readyState === "complete" ||
+  //     ( document.readyState !== "loading" &&
+  //       !document.documentElement.doScroll )
+  // ) {
+  //   start();
+  // } else {
+  //   document.addEventListener("DOMContentLoaded", start);
+  // }
 
   }, [urls, number, setMessage])
 
   return (
     <>
-  <video
-    id="preview"
-    width="1200"
-    autoPlay
-    muted
-    ref={previewElement}></video>
-  <video
-    id="recording"
-    width="1200"
-    autoPlay
-    muted
-    ref={recordingElement}></video>
-  <video
-    id="echo"
-    width="1200"
-    autoPlay
-    muted
-    ref={echoElement}></video>
-  <video
-    id="ripple"
-    width="1200"
-    autoPlay
-    muted
-    ref={rippleElement}></video>
-  <pre id="log" ref={logElement}>{message}</pre>
-
+    <Video
+      id="preview"
+      videoRef={previewElement}/>
+    <Video
+      id="recording"
+      videoRef={recordingElement}/>
+    <Video
+      id="echo"
+      videoRef={echoElement}/>
+    <Video
+      id="ripple"
+      videoRef={rippleElement}/>
+    <Log message={message} />
     </>
   )
 }
