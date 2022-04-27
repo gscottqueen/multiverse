@@ -92,7 +92,7 @@ const Echo = () => {
     domReady(start);
 
     function onResults(results) {
-      if (number > 1 && results.segmentationMask) {
+      if (number > 3 && results.segmentationMask) {
         canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
@@ -143,7 +143,7 @@ const Echo = () => {
     <>
       <Video
         id="preview"
-        hidden={number < 1}
+        hidden={number < 2}
         videoRef={previewElement}
         width={`${window.innerWidth}px`}
         height={`${window.innerHeight}px`}/>
@@ -153,7 +153,7 @@ const Echo = () => {
         width={`${window.innerWidth}px`}
         height={`${window.innerHeight}px`}/>
       <canvas
-        hidden={number > 1}
+        hidden={number > 2}
         className="output_canvas"
         width={`${window.innerWidth}px`}
         height={`${window.innerHeight}px`}
