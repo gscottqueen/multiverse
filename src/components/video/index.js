@@ -1,12 +1,12 @@
 import React from 'react'
 import './index.css'
 
-const Video = ({id, videoRef}) => <video
+const Video = ({id, videoRef, ...props}) => <video
   id={id}
-  width="1200"
   playsInline
   autoPlay
   muted
-  ref={videoRef}/>
+  ref={videoRef}
+  {...props}/>
 
 export default Video

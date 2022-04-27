@@ -1,120 +1,167 @@
-import { useEffect, useRef, useState } from 'react';
-import { userMediaConfig } from './config/user-media-config';
-import { domReady } from './utilities/domReady';
-import { Video, Log } from './components'
+import { useEffect, useRef, useState } from "react";
+import { userMediaConfig } from "./config/user-media-config";
+import { domReady } from "./utilities/domReady";
+import { Video, Log } from "./components";
+import { SelfieSegmentation } from "@mediapipe/selfie_segmentation";
+import { Camera } from "@mediapipe/camera_utils";
 
-const Echo = () =>  {
-  const previewElement = useRef(null)
-  const recordingElement = useRef(null)
-  const echoElement = useRef(null)
-  const rippleElement = useRef(null)
-  const [urls, setUrls] = useState([])
-  const [number, setNumber] = useState(0)
-  const [message, setMessage] = useState('')
-  const recordingTimeMS = 3000;
+const Echo = () => {
+  const previewElement = useRef(null);
+  const recordingElement = useRef(null);
+  const canvasElement = useRef(null);
+  const [urls, setUrls] = useState([]);
+  const [number, setNumber] = useState(0);
+  const [message, setMessage] = useState("");
+  const recordingTimeMS = 2000;
 
   useEffect(() => {
-  const preview = previewElement.current
-  const recording = recordingElement.current
-  const echo = echoElement.current
-  const ripple = rippleElement.current
-
-  function wait(delayInMS) {
-    return new Promise(resolve => setTimeout(resolve, delayInMS));
-  }
-
-  function startRecording(stream, lengthInMS) {
-    let recorder = new MediaRecorder(stream);
-    let data = [];
-
-    recorder.ondataavailable = event => data.push(event.data);
-    recorder.start();
-    setMessage(recorder.state + " for " + (lengthInMS/1000) + " seconds...");
-
-    let stopped = new Promise((resolve, reject) => {
-      recorder.onstop = resolve;
-      recorder.onerror = event => reject(event.name);
+    const preview = previewElement.current;
+    const recording = recordingElement.current;
+    const canvas = canvasElement.current;
+    const canvasCtx = canvas.getContext("2d");
+    const selfieSegmentation = new SelfieSegmentation({
+      locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
+      },
+    });
+    selfieSegmentation.setOptions({
+      modelSelection: 1,
+      selfieMode: true,
+      smoothSegmentation: true
     });
 
-    let recorded = wait(lengthInMS).then(
-      () => recorder.state === "recording" && recorder.stop()
-    );
+    function wait(delayInMS) {
+      return new Promise((resolve) => setTimeout(resolve, delayInMS));
+    }
 
-    return Promise.all([
-      stopped,
-      recorded
-    ])
-    .then(() => data);
-  }
+    function startRecording(stream, lengthInMS) {
+      let recorder = new MediaRecorder(stream);
+      let data = [];
 
- function start() {
-  navigator.mediaDevices.getUserMedia(userMediaConfig).then(stream => {
-      preview.srcObject = stream;
-      preview.captureStream = preview.captureStream || preview.mozCaptureStream;
-      return new Promise(resolve => preview.onplaying = resolve);
-    }).then(() => startRecording(preview.captureStream(), recordingTimeMS))
-    .then (recordedChunks => {
-      let recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
-      const url = URL.createObjectURL(recordedBlob)
-      console.log(url.blob)
-      setUrls([urls, url])
-      console.log(urls)
-      recording.src = urls[urls.length - 1];
+      recorder.ondataavailable = (event) => data.push(event.data);
+      recorder.start();
+      setMessage(recorder.state + " for " + lengthInMS / 1000 + " seconds...");
 
-      setMessage("Successfully recorded " + recordedBlob.size + " bytes of " +
-          recordedBlob.type + " media.");
-      setNumber(number + 1)
-      console.log(number)
-      if (number > 1 ) {
-      echo.src = urls[urls.length - 2];
-      }
+      let stopped = new Promise((resolve, reject) => {
+        recorder.onstop = resolve;
+        recorder.onerror = (event) => reject(event.name);
+      });
 
-      if (number > 6 ) {
-      ripple.src = urls[urls.length - 6];
-      }
-          console.log(number, urls)
-      start()
-    })
-    .catch((error) => {
-      if (error.name === "NotFoundError") {
-        setMessage("Camera or microphone not found. Can’t record.");
+      let recorded = wait(lengthInMS).then(
+        () => recorder.state === "recording" && recorder.stop()
+      );
+
+      return Promise.all([stopped, recorded]).then(() => data);
+    }
+
+    function start() {
+      navigator.mediaDevices
+        .getUserMedia(userMediaConfig)
+        .then((stream) => {
+          preview.srcObject = stream;
+          preview.captureStream =
+            preview.captureStream || preview.mozCaptureStream;
+          return new Promise((resolve) => (preview.onplaying = resolve));
+        })
+        .then(() => startRecording(preview.captureStream(), recordingTimeMS))
+        .then((recordedChunks) => {
+          let recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
+          const url = URL.createObjectURL(recordedBlob);
+          setUrls([urls, url]);
+          recording.src = urls[urls.length - 1];
+
+          setMessage(
+            "Successfully recorded " +
+              recordedBlob.size +
+              " bytes of " +
+              recordedBlob.type +
+              " media."
+          );
+          setNumber(number + 1);
+          start();
+        })
+        .catch((error) => {
+          if (error.name === "NotFoundError") {
+            setMessage("Camera or microphone not found. Can’t record.");
+          } else {
+            setMessage(error);
+          }
+        });
+    }
+
+    domReady(start);
+
+    function onResults(results) {
+      if (number > 1 && results.segmentationMask) {
+        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+        canvasCtx.drawImage(
+          results.segmentationMask,
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
+
+        // Only overwrite existing pixels.
+        canvasCtx.globalCompositeOperation = "source-out";
+        canvasCtx.fillStyle = "#00FF00";
+        canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Only overwrite missing pixels.
+        canvasCtx.globalCompositeOperation = "destination-in"
+        canvasCtx.drawImage(results.image, 0, 0, canvas.width, canvas.height)
+
+        canvasCtx.drawImage(
+          results.segmentationMask,
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        )
+
+        canvasCtx.restore();
       } else {
-        setMessage(error);
+        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
       }
-    })
-  }
+    }
 
-  domReady(start)
+    selfieSegmentation.onResults(onResults);
 
-  // if (
-  //     document.readyState === "complete" ||
-  //     ( document.readyState !== "loading" &&
-  //       !document.documentElement.doScroll )
-  // ) {
-  //   start();
-  // } else {
-  //   document.addEventListener("DOMContentLoaded", start);
-  // }
-
-  }, [urls, number, setMessage])
+    const camera = new Camera(preview, {
+      onFrame: async () => {
+        await selfieSegmentation.send({ image: preview });
+      },
+      width: canvas.width,
+      height: canvas.height,
+    });
+    camera.start();
+  }, [number, setMessage, urls]);
 
   return (
     <>
-    <Video
-      id="preview"
-      videoRef={previewElement}/>
-    <Video
-      id="recording"
-      videoRef={recordingElement}/>
-    <Video
-      id="echo"
-      videoRef={echoElement}/>
-    <Video
-      id="ripple"
-      videoRef={rippleElement}/>
-    <Log message={message} />
+      <Video
+        id="preview"
+        hidden={number < 1}
+        videoRef={previewElement}
+        width={`${window.innerWidth}px`}
+        height={`${window.innerHeight}px`}/>
+      <Video
+        id="recording"
+        videoRef={recordingElement}
+        width={`${window.innerWidth}px`}
+        height={`${window.innerHeight}px`}/>
+      <canvas
+        hidden={number > 1}
+        className="output_canvas"
+        width={`${window.innerWidth}px`}
+        height={`${window.innerHeight}px`}
+        ref={canvasElement}
+      ></canvas>
+      <Log message={message} />
     </>
-  )
-}
+  );
+};
 
-export default Echo
+export default Echo;
