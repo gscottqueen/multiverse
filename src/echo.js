@@ -10,7 +10,7 @@ const Echo = () => {
   const recordingElement = useRef(null);
   const canvasElement = useRef(null);
   const [urls, setUrls] = useState([]);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState([]);
   const [recordingTimeMS, setRecordingTimeMS] = useState(1000);
 
   useEffect(() => {
@@ -40,7 +40,7 @@ const Echo = () => {
 
       recorder.ondataavailable = (event) => data.push(event.data);
       recorder.start();
-      setMessage(recorder.state + " for " + lengthInMS / 1000 + " seconds...");
+      setMessage([...message, recorder.state + " for " + lengthInMS / 1000 + " seconds..."]);
 
       let stopped = new Promise((resolve, reject) => {
         recorder.onstop = resolve;
@@ -67,24 +67,26 @@ const Echo = () => {
         .then((recordedChunks) => {
           let recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
           const url = URL.createObjectURL(recordedBlob);
-          setUrls([urls, url]);
+          setUrls([...urls, url]);
           recordingTimeMS < 15000 && setRecordingTimeMS(recordingTimeMS + 1000)
           recording.src = urls[urls.length - 1];
 
-          setMessage(
-            "Successfully recorded " +
+          setMessage([
+          ...message,
+          "Successfully recorded " +
               recordedBlob.size +
               " bytes of " +
               recordedBlob.type +
               " media."
+            ]
           );
           start();
         })
         .catch((error) => {
           if (error.name === "NotFoundError") {
-            setMessage("Camera or microphone not found. Can’t record.");
+            setMessage([...message, "Camera or microphone not found. CanU+2019t record."]);
           } else {
-            setMessage(error);
+            setMessage([...message, error]);
           }
         });
     }
@@ -159,7 +161,7 @@ const Echo = () => {
         height={`${window.innerHeight}px`}
         ref={canvasElement}
       ></canvas>
-      <Log message={message} />
+      {message.map( msg => <Log message={msg} /> )}
     </>
   );
 };
