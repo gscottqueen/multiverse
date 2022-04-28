@@ -10,9 +10,8 @@ const Echo = () => {
   const recordingElement = useRef(null);
   const canvasElement = useRef(null);
   const [urls, setUrls] = useState([]);
-  const [number, setNumber] = useState(0);
   const [message, setMessage] = useState("");
-  const recordingTimeMS = 2000;
+  const [recordingTimeMS, setRecordingTimeMS] = useState(1000);
 
   useEffect(() => {
     const preview = previewElement.current;
@@ -24,6 +23,7 @@ const Echo = () => {
         return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
       },
     });
+
     selfieSegmentation.setOptions({
       modelSelection: 1,
       selfieMode: true,
@@ -68,6 +68,7 @@ const Echo = () => {
           let recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
           const url = URL.createObjectURL(recordedBlob);
           setUrls([urls, url]);
+          recordingTimeMS < 15000 && setRecordingTimeMS(recordingTimeMS + 1000)
           recording.src = urls[urls.length - 1];
 
           setMessage(
@@ -77,7 +78,6 @@ const Echo = () => {
               recordedBlob.type +
               " media."
           );
-          setNumber(number + 1);
           start();
         })
         .catch((error) => {
@@ -92,7 +92,7 @@ const Echo = () => {
     domReady(start);
 
     function onResults(results) {
-      if (number > 3 && results.segmentationMask) {
+      if (recordingTimeMS > 3000 && results.segmentationMask) {
         canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
@@ -137,13 +137,13 @@ const Echo = () => {
       height: canvas.height,
     });
     camera.start();
-  }, [number, setMessage, urls]);
+  }, [recordingTimeMS, setMessage, urls]);
 
   return (
     <>
       <Video
         id="preview"
-        hidden={number < 2}
+        hidden={recordingTimeMS < 2000}
         videoRef={previewElement}
         width={`${window.innerWidth}px`}
         height={`${window.innerHeight}px`}/>
@@ -153,7 +153,7 @@ const Echo = () => {
         width={`${window.innerWidth}px`}
         height={`${window.innerHeight}px`}/>
       <canvas
-        hidden={number > 2}
+        hidden={recordingTimeMS > 2000}
         className="output_canvas"
         width={`${window.innerWidth}px`}
         height={`${window.innerHeight}px`}
