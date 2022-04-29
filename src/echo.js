@@ -145,7 +145,7 @@ const Echo = () => {
     <>
       <Video
         id="preview"
-        hidden={recordingTimeMS < 2000}
+        hidden={recordingTimeMS < 3000}
         videoRef={previewElement}
         width={`${window.innerWidth}px`}
         height={`${window.innerHeight}px`}/>
@@ -155,7 +155,7 @@ const Echo = () => {
         width={`${window.innerWidth}px`}
         height={`${window.innerHeight}px`}/>
       <canvas
-        hidden={recordingTimeMS > 2000}
+        hidden={recordingTimeMS > 3000}
         className="output_canvas"
         width={`${window.innerWidth}px`}
         height={`${window.innerHeight}px`}
