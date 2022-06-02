@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { userMediaConfig } from "./config/user-media-config";
 import { domReady } from "./utilities/domReady";
-import { Video } from "./components";
+import { Video, Loading } from "./components";
 import { Camera } from "@mediapipe/camera_utils";
 
 const Echo = () => {
@@ -79,8 +79,9 @@ const Echo = () => {
 
   return (
     <>
-      <p
-      hidden={recordingTimeMS > 10000}>loading...</p>
+      <Loading
+        hidden={recordingTimeMS > 10000}
+      />
       <Video
         id="preview"
         hidden={recordingTimeMS < 11000}
