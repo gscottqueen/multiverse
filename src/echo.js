@@ -1,34 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { userMediaConfig } from "./config/user-media-config";
 import { domReady } from "./utilities/domReady";
-import { Video, Log } from "./components";
-import { SelfieSegmentation } from "@mediapipe/selfie_segmentation";
+import { Video } from "./components";
 import { Camera } from "@mediapipe/camera_utils";
 
 const Echo = () => {
   const previewElement = useRef(null);
   const recordingElement = useRef(null);
-  const canvasElement = useRef(null);
-  const [urls, setUrls] = useState([]);
-  const [message, setMessage] = useState([]);
-  const [recordingTimeMS, setRecordingTimeMS] = useState(1000);
+  const [recordingTimeMS, setRecordingTimeMS] = useState(10000);
 
   useEffect(() => {
     const preview = previewElement.current;
     const recording = recordingElement.current;
-    const canvas = canvasElement.current;
-    const canvasCtx = canvas.getContext("2d");
-    const selfieSegmentation = new SelfieSegmentation({
-      locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
-      },
-    });
-
-    selfieSegmentation.setOptions({
-      modelSelection: 1,
-      selfieMode: true,
-      smoothSegmentation: true
-    });
 
     function wait(delayInMS) {
       return new Promise((resolve) => setTimeout(resolve, delayInMS));
@@ -40,7 +23,7 @@ const Echo = () => {
 
       recorder.ondataavailable = (event) => data.push(event.data);
       recorder.start();
-      setMessage([...message, recorder.state + " for " + lengthInMS / 1000 + " seconds..."]);
+      console.log(recorder.state + " for " + lengthInMS / 1000 + " seconds...");
 
       let stopped = new Promise((resolve, reject) => {
         recorder.onstop = resolve;
@@ -67,85 +50,40 @@ const Echo = () => {
         .then((recordedChunks) => {
           let recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
           const url = URL.createObjectURL(recordedBlob);
-          setUrls([...urls, url]);
           recordingTimeMS < 15000 && setRecordingTimeMS(recordingTimeMS + 1000)
-          recording.src = urls[urls.length - 1];
+          recording.src = url;
 
-          setMessage([
-          ...message,
+          console.log(
           "Successfully recorded " +
               recordedBlob.size +
               " bytes of " +
               recordedBlob.type +
               " media."
-            ]
           );
           start();
         })
         .catch((error) => {
           if (error.name === "NotFoundError") {
-            setMessage([...message, "Camera or microphone not found. CanU+2019t record."]);
+            console.log("Camera or microphone not found. CanU+2019t record.");
           } else {
-            setMessage([...message, error]);
+            console.log(error);
           }
         });
     }
 
     domReady(start);
 
-    function onResults(results) {
-      if (recordingTimeMS > 3000 && results.segmentationMask) {
-        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-        canvasCtx.save();
-        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-        canvasCtx.drawImage(
-          results.segmentationMask,
-          0,
-          0,
-          canvas.width,
-          canvas.height
-        );
-
-        // Only overwrite existing pixels.
-        canvasCtx.globalCompositeOperation = "source-out";
-        canvasCtx.fillStyle = "#00FF00";
-        canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Only overwrite missing pixels.
-        canvasCtx.globalCompositeOperation = "destination-in"
-        canvasCtx.drawImage(results.image, 0, 0, canvas.width, canvas.height)
-
-        canvasCtx.drawImage(
-          results.segmentationMask,
-          0,
-          0,
-          canvas.width,
-          canvas.height
-        )
-
-        canvasCtx.restore();
-      } else {
-        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-    }
-
-    selfieSegmentation.onResults(onResults);
-
-    const camera = new Camera(preview, {
-      onFrame: async () => {
-        await selfieSegmentation.send({ image: preview });
-      },
-      width: canvas.width,
-      height: canvas.height,
-    });
+    const camera = new Camera(preview, {});
     camera.start();
-  }, [recordingTimeMS, setMessage, urls]);
+  }, [recordingTimeMS]);
 
   return (
     <>
+      <p
+      hidden={recordingTimeMS > 10000}>loading...</p>
       <Video
         id="preview"
-        hidden={recordingTimeMS < 3000}
+        hidden={recordingTimeMS < 11000}
         videoRef={previewElement}
         width={`${window.innerWidth}px`}
         height={`${window.innerHeight}px`}/>
@@ -154,14 +92,6 @@ const Echo = () => {
         videoRef={recordingElement}
         width={`${window.innerWidth}px`}
         height={`${window.innerHeight}px`}/>
-      <canvas
-        hidden={recordingTimeMS > 3000}
-        className="output_canvas"
-        width={`${window.innerWidth}px`}
-        height={`${window.innerHeight}px`}
-        ref={canvasElement}
-      ></canvas>
-      {message.map( msg => <Log message={msg} /> )}
     </>
   );
 };
